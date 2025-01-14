@@ -10,27 +10,24 @@ import (
 )
 
 func Generator(ctx context.Context, ch chan<- int64, fn func(int64)) {
-	var N int64 = 1
+	defer close(ch)
+	var n int64 = 1
 	for {
 		select {
 		case <-ctx.Done():
-			close(ch)
+
 			return
 		default:
-			fn(N)
-			ch <- N
-			N++
+			fn(n)
+			ch <- n
+			n++
 		}
 	}
 }
 
 func Worker(in <-chan int64, out chan<- int64) {
-	for {
-		v, ok := <-in
-		if !ok {
-			close(out)
-			return
-		}
+	defer close(out)
+	for v := range in {
 		out <- v
 		time.Sleep(1 * time.Millisecond)
 	}
@@ -62,6 +59,7 @@ func main() {
 
 	for index, v := range outs {
 		wg.Add(1)
+
 		go func(in <-chan int64, i int64) {
 			defer wg.Done()
 			for val := range in {
